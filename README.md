@@ -1,9 +1,5 @@
 # 新概念英语学习资料
 
-本项目使用 Github pages 在线部署，如果需要更好的阅读体验请访问链接：https://protogenesis.github.io/New-Concept-English/
-
-
-
 [NCE1](./NCE1.md)
 
 [NCE2](./NCE2.md)
@@ -12,7 +8,7 @@
 
 [NCE4](./NCE4.md)
 
-[文章列表](https://protogenesis.github.io/New-Concept-English/articles.html)（部分文章来自旧版本教材）
+[文章列表](https://protogenesis.github.io/New-Concept-English/index.html)
 
 ---
 
