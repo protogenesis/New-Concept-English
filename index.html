@@ -80,7 +80,7 @@
     .library-summary { margin-top: 4px; opacity: .85; }
     .main-shell { margin-left: var(--sidebar-width); min-width: 0; }
     .topbar { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; min-height: 90px; padding: 16px 46px; border-bottom: 1px solid var(--line); }
-    .breadcrumb { color: var(--muted); font-size: 12px; display: flex; align-items: center; flex-wrap: wrap; gap: 12px; }
+    .breadcrumb { color: var(--muted); font-size: 12px; display: flex; flex: 1; align-items: center; flex-wrap: wrap; gap: 12px; }
     .breadcrumb .slash { opacity: .4; }
     .toolbar { display: flex; align-items: center; gap: 8px; }
     .font-controls { display: flex; align-items: center; border: 1px solid var(--line); border-radius: 7px; }
@@ -90,7 +90,7 @@
     #font-value { width: 34px; text-align: center; color: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
     .theme-toggle { border-color: var(--line); }
     .theme-label { font-size: 12px; }
-    .menu-button { display: none; border-color: var(--line); font-size: 12px; }
+    .menu-button { border-color: var(--line); font-size: 12px; }
     .reading-wrap { max-width: 850px; padding: 48px 54px 32px; margin: 0 auto; }
     .book-intro { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding-bottom: 24px; margin-bottom: 46px; border-bottom: 1px solid var(--line); }
     .book-kicker { color: var(--accent); font-size: 10px; text-transform: uppercase; letter-spacing: 2.3px; font-weight: 600; }
@@ -115,10 +115,12 @@
     .page-direction { color: var(--muted); font-size: 11px; margin-bottom: 5px; }
     .page-title { font: 16px/1.4 Georgia, serif; overflow-wrap: anywhere; max-width: 100%; }
     .reader-footer { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px 20px; padding-top: 26px; color: var(--muted); font-size: 11px; }
-    .reader-footer a { display: inline-flex; align-items: center; min-height: 44px; color: var(--muted); }
     .reading-progress { position: fixed; top: 0; right: 0; left: var(--sidebar-width); height: 2px; z-index: 5; pointer-events: none; }
     #progress-fill { height: 100%; width: 0; background: var(--accent); opacity: .65; }
     .backdrop { position: fixed; inset: 0; z-index: 9; background: #11190f66; backdrop-filter: blur(2px); }
+    .sidebar-hidden .library { visibility: hidden; transform: translateX(-100%); }
+    .sidebar-hidden .main-shell { margin-left: 0; }
+    .sidebar-hidden .reading-progress { left: 0; }
     @media (min-width: 769px) and (max-width: 1050px) {
       :root { --sidebar-width: 260px; }
       .library-top { padding-left: 18px; padding-right: 18px; }
@@ -129,7 +131,7 @@
       .library { width: min(360px, calc(100% - 24px)); padding-left: env(safe-area-inset-left); visibility: hidden; transform: translateX(-100%); border: 0; box-shadow: var(--shadow); }
       .library.is-open { transform: none; visibility: visible; }
       .library-top { padding-top: max(20px, env(safe-area-inset-top)); }
-      .close-library, .menu-button { display: inline-flex; }
+      .close-library { display: inline-flex; }
       .main-shell { margin-left: 0; }
       .topbar { min-height: 76px; gap: 10px; padding: max(14px, env(safe-area-inset-top)) max(18px, env(safe-area-inset-right)) 14px max(18px, env(safe-area-inset-left)); }
       .breadcrumb { display: none; }
@@ -217,7 +219,7 @@
         <button class="page-button" id="previous"><span class="page-direction">← Previous article</span><span class="page-title" id="previous-title"></span></button>
         <button class="page-button" id="next"><span class="page-direction">Next article →</span><span class="page-title" id="next-title"></span></button>
       </nav>
-      <footer class="reader-footer"><span id="save-status">Your place is saved on this device.</span><a id="source-link" target="_blank" rel="noopener noreferrer">Original on LingQ ↗</a></footer>
+      <footer class="reader-footer"><span id="save-status">Your place is saved on this device.</span></footer>
     </div>
   </main>
   <div class="reading-progress" aria-hidden="true"><div id="progress-fill"></div></div>
@@ -244,6 +246,7 @@
     let currentIndex = 0;
     let libraryBook = books[0].number;
     let drawerOpen = false;
+    let sidebarHidden = false;
     let restoring = false;
     let scrollTimer;
 
@@ -365,8 +368,6 @@
         if (/^(First listen|Listen to the tape)/i.test(text)) paragraph.className = 'listening-prompt';
         return paragraph;
       }));
-      const source = new URL(article.sourceUrl);
-      $('source-link').href = ['https:', 'http:'].includes(source.protocol) ? source.href : '#';
       $('previous').disabled = index === 0;
       $('next').disabled = index === articles.length - 1;
       $('previous-title').textContent = index > 0 ? articles[index - 1].title : 'Beginning of the library';
@@ -379,23 +380,32 @@
       });
     }
 
-    function setDrawer(open, returnFocus = true) {
-      drawerOpen = mobile.matches && open;
+    function syncLibrary(returnFocus = false) {
+      const visible = mobile.matches ? drawerOpen : !sidebarHidden;
+      const focusWasInLibrary = $('library').contains(document.activeElement);
+      document.body.classList.toggle('sidebar-hidden', !mobile.matches && sidebarHidden);
       $('library').classList.toggle('is-open', drawerOpen);
       $('backdrop').hidden = !drawerOpen;
-      $('open-library').setAttribute('aria-expanded', String(drawerOpen));
+      $('open-library').setAttribute('aria-expanded', String(visible));
+      $('open-library').setAttribute('aria-label', visible ? 'Hide library' : 'Show library');
       $('main').inert = drawerOpen;
       document.body.style.overflow = drawerOpen ? 'hidden' : '';
-      $('library').inert = mobile.matches && !drawerOpen;
-      if (mobile.matches && !drawerOpen) $('library').setAttribute('aria-hidden', 'true');
+      $('library').inert = !visible;
+      if (!visible) $('library').setAttribute('aria-hidden', 'true');
       else $('library').removeAttribute('aria-hidden');
       if (drawerOpen) {
         $('library').setAttribute('role', 'dialog'); $('library').setAttribute('aria-modal', 'true');
         $('close-library').focus();
       } else {
         $('library').removeAttribute('role'); $('library').removeAttribute('aria-modal');
-        if (returnFocus && mobile.matches) $('open-library').focus({ preventScroll: true });
+        if (returnFocus || (focusWasInLibrary && (!visible || !document.activeElement.getClientRects().length))) $('open-library').focus({ preventScroll: true });
       }
+      updateProgress();
+    }
+
+    function setDrawer(open, returnFocus = true) {
+      drawerOpen = mobile.matches && open;
+      syncLibrary(returnFocus);
     }
 
     function navigate(id, close = true) {
@@ -413,7 +423,10 @@
     $('font-smaller').addEventListener('click', () => { fontSize = Math.max(16, fontSize - 2); applyPreferences(); persist(); updateProgress(); });
     $('font-larger').addEventListener('click', () => { fontSize = Math.min(28, fontSize + 2); applyPreferences(); persist(); updateProgress(); });
     $('theme-toggle').addEventListener('click', () => { theme = theme === 'dark' ? 'light' : 'dark'; applyPreferences(); persist(); });
-    $('open-library').addEventListener('click', () => setDrawer(true));
+    $('open-library').addEventListener('click', () => {
+      if (mobile.matches) setDrawer(!drawerOpen);
+      else { sidebarHidden = !sidebarHidden; syncLibrary(); }
+    });
     $('close-library').addEventListener('click', () => setDrawer(false));
     $('backdrop').addEventListener('click', () => setDrawer(false));
     document.addEventListener('keydown', event => {
